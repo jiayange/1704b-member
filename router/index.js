@@ -2,10 +2,25 @@ const router = require('koa-router')()
 
 const query = require('../db/query')
 
-//查询所有成员列表
+//查询所有成员列表   分页降序
 router.get('/api/userlist', async function(ctx) {
-    let data = await query('select * from userlist')
-    ctx.response.body = data
+    // let data = await query('select * from userlist')
+    // ctx.response.body = data
+
+    let { curpage = 1, limit = 2 } = ctx.request.query
+    let startIndex = (curpage - 1) * limit
+
+    let data = await query(`select * from userlist order by create_time desc limit ${startIndex},${limit}`)
+    let count = await query('select count(*) from userlist')
+        // console.log(count)
+
+    let total = Math.ceil(count.data[0]['count(*)'] / limit) //总页数
+
+    if (data.data.length) {
+        ctx.body = { code: 1, data: data.data, total }
+    } else {
+        ctx.body = { code: 0, msg: '暂无数据' }
+    }
 })
 
 //添加成员信息
@@ -24,8 +39,10 @@ router.post('/api/add', async(ctx) => {
         return ctx.body = { code: 3, msg: '此ID已存在，请重新设置' }
     } else {
         //不存在
-        let sql = 'insert into userlist (name,age,telphone,sex,address,idcard) values (?,?,?,?,?,?)'
-        let res = await query(sql, [name, age, telphone, sex, address, idcard])
+        let create_time = new Date()
+        let sql = 'insert into userlist (name,age,telphone,sex,address,idcard,create_time) values (?,?,?,?,?,?,?)'
+
+        let res = await query(sql, [name, age, telphone, sex, address, idcard, create_time])
         if (res.msg === 'success') {
             ctx.body = { code: 1, msg: '添加成功' }
         } else {
